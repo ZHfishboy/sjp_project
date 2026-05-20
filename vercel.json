@@ -11,6 +11,21 @@
     }
   ],
   "functions": {
+    "api/v1/calc/evaluate.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/splash-popup/list.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/splash-popup/log.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/exit-intent/copy.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/exit-intent/log.ts": {
+      "maxDuration": 10
+    },
     "api/v1/[...all].ts": {
       "maxDuration": 10
     }
