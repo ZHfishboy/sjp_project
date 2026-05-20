@@ -11,73 +11,40 @@
     }
   ],
   "functions": {
-    "api/v1/auth/register.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/auth/login.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/auth/refresh.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/captcha/image.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/captcha/verify.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/vip/status.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/vip/order.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/user/profile.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/gift/first-purchase.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/gift/first-purchase/shown.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/gift/first-purchase/dismiss.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/invite/my-code.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/exchange/currencies.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/exchange/convert.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/unit/categories.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/unit/convert.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/calc/evaluate.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/calc/history.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/splash-popup/list.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/splash-popup/log.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/exit-intent/copy.ts": {
-      "maxDuration": 10
-    },
-    "api/v1/exit-intent/log.ts": {
-      "maxDuration": 10
-    },
     "api/v1/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/auth/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/captcha/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/calc/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/exchange/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/unit/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/user/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/vip/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/gift/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/invite/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/exit-intent/[...all].ts": {
+      "maxDuration": 10
+    },
+    "api/v1/splash-popup/[...all].ts": {
       "maxDuration": 10
     }
   }

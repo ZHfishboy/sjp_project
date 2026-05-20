@@ -24,3 +24,21 @@ export async function forwardToExpress(req: any, res: any, path: string, include
   await ensureAppReady();
   return app(req, res);
 }
+
+export async function forwardCatchAll(
+  req: any,
+  res: any,
+  basePath: string,
+  includeQuery = true,
+) {
+  const rawSegments = req.query?.all;
+  const segments = Array.isArray(rawSegments)
+    ? rawSegments
+    : rawSegments
+      ? [rawSegments]
+      : [];
+
+  const normalizedBase = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+  const suffix = segments.length > 0 ? `/${segments.join('/')}` : '';
+  return forwardToExpress(req, res, `${normalizedBase}${suffix}`, includeQuery);
+}
