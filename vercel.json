@@ -6,16 +6,12 @@
   "outputDirectory": "frontend/dist",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "/api/[...all]"
-    },
-    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
   "functions": {
-    "api/[...all].ts": {
+    "api/v1/[...all].ts": {
       "maxDuration": 10
     }
   }
