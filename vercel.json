@@ -11,6 +11,21 @@
     }
   ],
   "functions": {
+    "api/v1/auth/register.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/auth/login.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/auth/refresh.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/captcha/image.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/captcha/verify.ts": {
+      "maxDuration": 10
+    },
     "api/v1/calc/evaluate.ts": {
       "maxDuration": 10
     },
