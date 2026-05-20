@@ -11,6 +11,11 @@ import { GIFT_PACKS, getOrCreateWallet, addTokens, activateVip } from '../servic
 // Check if user is eligible for gift pack popup
 export async function checkGiftEligibility(req: Request, res: Response): Promise<void> {
   const userId = req.userId!;
+  const user = await db('users').where({ id: userId }).first();
+
+  if (!user || user.status !== 1) {
+    return fail(res, '用户不存在', 404);
+  }
 
   // Check if user has ever paid
   const anyOrder = await db('recharge_orders')
@@ -22,7 +27,6 @@ export async function checkGiftEligibility(req: Request, res: Response): Promise
   }
 
   // Check registration time (must be > 1 hour ago)
-  const user = await db('users').where({ id: userId }).first();
   const hoursSinceReg = (Date.now() - new Date(user.created_at).getTime()) / 3600000;
   if (hoursSinceReg < 1) {
     return success(res, { eligible: false, reason: '注册不足1小时' });
@@ -119,6 +123,9 @@ export async function getMyInviteInfo(req: Request, res: Response): Promise<void
   const userId = req.userId!;
 
   const user = await db('users').where({ id: userId }).first();
+  if (!user || user.status !== 1) {
+    return fail(res, '用户不存在', 404);
+  }
 
   // Count my invitees
   const inviteCount = await db('user_invites')
@@ -334,21 +341,22 @@ export async function getSplashPopups(req: Request, res: Response): Promise<void
   let isNewUser = false;
 
   if (req.userId) {
-    userType = 1;
     const user = await db('users').where({ id: req.userId }).first();
-    if (user && user.total_recharge > 0) isPayer = true;
+    if (user && user.status === 1) {
+      userType = 1;
+      if (user.total_recharge > 0) isPayer = true;
 
-    // New user: registered < 3 days
-    const daysSinceReg = (Date.now() - new Date(user.created_at).getTime()) / 86400000;
-    isNewUser = daysSinceReg < 3;
+      const daysSinceReg = (Date.now() - new Date(user.created_at).getTime()) / 86400000;
+      isNewUser = daysSinceReg < 3;
 
-    const vip = await db('user_vip')
-      .where({ user_id: req.userId, status: 1 })
-      .where(function () {
-        this.whereNull('end_date').orWhere('end_date', '>', new Date());
-      })
-      .first();
-    if (vip) userType = 2;
+      const vip = await db('user_vip')
+        .where({ user_id: req.userId, status: 1 })
+        .where(function () {
+          this.whereNull('end_date').orWhere('end_date', '>', new Date());
+        })
+        .first();
+      if (vip) userType = 2;
+    }
   }
 
   // Filter popups based on user type

@@ -11,7 +11,7 @@
     }
   ],
   "functions": {
-    "api/v1/[...all].ts": {
+    "api/v1/health.ts": {
       "maxDuration": 10
     },
     "api/v1/auth/[...all].ts": {
