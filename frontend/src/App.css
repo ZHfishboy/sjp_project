@@ -1,0 +1,476 @@
+/* ================================================
+   CalcMaster — Taobao Orange Design System
+   ================================================ */
+
+:root {
+  --tb-orange: #FF5000;
+  --tb-orange-light: #FF6B28;
+  --tb-orange-dark: #E04800;
+  --tb-gold: #FF9100;
+  --tb-red: #FF0036;
+  --tb-bg: #F4F4F4;
+  --tb-card: #FFFFFF;
+  --tb-text: #333333;
+  --tb-text-secondary: #999999;
+  --tb-text-muted: #BBBBBB;
+  --tb-border: #EEEEEE;
+  --tb-green: #00B262;
+  --tb-blue: #1677FF;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  background: var(--tb-bg);
+  color: var(--tb-text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 0; }
+
+/* ── Top Header ── */
+.tb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--tb-orange), var(--tb-orange-light));
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.tb-header-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.tb-header-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+/* ── Bottom Tab Bar (Taobao style) ── */
+.tb-tabbar {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 500px;
+  background: #fff;
+  border-top: 1px solid var(--tb-border);
+  padding: 6px 0 env(safe-area-inset-bottom, 6px);
+  z-index: 200;
+}
+.tb-tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--tb-text-muted);
+  font-size: 11px;
+  transition: color 0.2s;
+}
+.tb-tab-item.active { color: var(--tb-orange); font-weight: 600; }
+.tb-tab-icon { font-size: 22px; line-height: 1; }
+
+/* ── Speed Tier Bar ── */
+.tier-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  gap: 8px;
+}
+.tier-bar.t3 { background: linear-gradient(135deg, #999, #777); }
+.tier-bar.t2 { background: linear-gradient(135deg, #1677FF, #4096FF); }
+.tier-bar.t1 { background: linear-gradient(135deg, var(--tb-orange), var(--tb-gold)); }
+.tier-bar .tier-progress {
+  flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.3); overflow: hidden;
+}
+.tier-bar .tier-progress-inner {
+  height: 100%; border-radius: 2px; background: #fff; transition: width 0.5s ease;
+}
+
+/* ── Calculator Display ── */
+.calc-display {
+  min-height: 140px;
+  padding: 20px 20px 12px;
+  text-align: right;
+  background: linear-gradient(180deg, #FFF7F0 0%, #fff 100%);
+  border-bottom: 1px solid var(--tb-border);
+  word-break: break-all;
+}
+.calc-display .expression {
+  font-size: 20px;
+  color: var(--tb-text-secondary);
+  min-height: 32px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  letter-spacing: 1px;
+}
+.calc-display .result {
+  font-size: 46px;
+  font-weight: 800;
+  color: var(--tb-text);
+  margin-top: 8px;
+  line-height: 1.2;
+}
+.calc-display .meta {
+  font-size: 12px;
+  color: var(--tb-text-muted);
+  margin-top: 6px;
+}
+
+/* ── Calculator Keypad ── */
+.calc-keypad {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  background: var(--tb-border);
+  padding: 2px;
+}
+.calc-key {
+  padding: 20px 0;
+  font-size: 22px;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  color: var(--tb-text);
+  font-weight: 500;
+  transition: all 0.15s;
+  user-select: none;
+}
+.calc-key:active { background: #F0F0F0; transform: scale(0.96); }
+.calc-key.op { color: var(--tb-orange); font-weight: 700; font-size: 24px; }
+.calc-key.equals {
+  background: linear-gradient(135deg, var(--tb-orange), var(--tb-orange-light));
+  color: #fff;
+  font-size: 28px;
+}
+.calc-key.equals:active { opacity: 0.85; transform: scale(0.96); }
+.calc-key.clear { color: var(--tb-text-secondary); font-size: 16px; }
+
+/* ── Sci Bar ── */
+.sci-bar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #fff;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--tb-border);
+}
+.sci-key {
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--tb-border);
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--tb-text);
+  transition: all 0.2s;
+}
+.sci-key:active { background: #FFF0E8; border-color: var(--tb-orange); }
+.sci-key.locked {
+  background: #FAFAFA;
+  border-color: #F0F0F0;
+  color: var(--tb-text-muted);
+  cursor: not-allowed;
+}
+
+/* ── Cards ── */
+.tb-card {
+  background: var(--tb-card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+}
+.tb-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Page Layout ── */
+.tb-page {
+  padding: 12px 14px;
+  padding-bottom: 80px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ── Forms ── */
+.tb-form {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 24px 20px 80px;
+}
+.tb-form-title {
+  font-size: 26px;
+  font-weight: 800;
+  margin-bottom: 28px;
+  color: var(--tb-text);
+}
+.tb-form-group { margin-bottom: 18px; }
+.tb-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--tb-text);
+}
+.tb-input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid var(--tb-border);
+  border-radius: var(--radius);
+  font-size: 16px;
+  outline: none;
+  background: #FAFAFA;
+  transition: all 0.2s;
+}
+.tb-input:focus { border-color: var(--tb-orange); background: #fff; }
+
+/* ── Buttons ── */
+.tb-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 1px;
+}
+.tb-btn:active { transform: scale(0.97); opacity: 0.9; }
+.tb-btn-primary {
+  background: linear-gradient(135deg, var(--tb-orange), var(--tb-orange-light));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255,80,0,0.25);
+}
+.tb-btn-outline {
+  background: #fff;
+  border: 2px solid var(--tb-orange);
+  color: var(--tb-orange);
+}
+.tb-btn-sm { padding: 8px 20px; font-size: 14px; width: auto; }
+.tb-btn-danger { background: var(--tb-red); color: #fff; }
+.tb-btn-ghost {
+  background: rgba(255,80,0,0.08);
+  color: var(--tb-orange);
+  width: auto;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 13px;
+}
+
+/* ── VIP Plan Cards ── */
+.plans-grid { display: grid; gap: 10px; }
+.tb-plan-card {
+  position: relative;
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+.tb-plan-card:hover { border-color: var(--tb-orange); box-shadow: var(--shadow-lg); }
+.tb-plan-card.recommended {
+  border-color: var(--tb-orange);
+  background: linear-gradient(180deg, #FFF8F3 0%, #fff 30%);
+}
+.tb-plan-badge {
+  position: absolute;
+  top: -1px;
+  right: 16px;
+  background: linear-gradient(135deg, var(--tb-orange), var(--tb-red));
+  color: #fff;
+  padding: 3px 14px;
+  border-radius: 0 0 8px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.tb-plan-price {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--tb-orange);
+}
+.tb-plan-price .unit { font-size: 16px; font-weight: 600; }
+
+/* ── Feature List ── */
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: var(--radius);
+  background: #fff;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
+}
+.feature-item .fi-icon { font-size: 28px; min-width: 40px; text-align: center; }
+
+/* ── Modal ── */
+.tb-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+.tb-modal {
+  background: #fff;
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: modalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.85) translateY(30px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.tb-modal h2 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.tb-modal p { color: var(--tb-text-secondary); margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+.tb-modal-btns { display: flex; gap: 10px; }
+.tb-modal-btns .tb-btn { flex: 1; }
+
+/* ── User Avatar ── */
+.tb-avatar {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--tb-orange), var(--tb-gold));
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 4px 16px rgba(255,80,0,0.3);
+}
+
+/* ── Wallet display ── */
+.tb-wallet {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.tb-wallet-item {
+  background: linear-gradient(135deg, #FFF8F3, #FFF0E8);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+}
+.tb-wallet-item .value {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--tb-orange);
+}
+.tb-wallet-item .label {
+  font-size: 12px;
+  color: var(--tb-text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Empty State ── */
+.tb-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--tb-text-secondary);
+}
+.tb-empty-icon { font-size: 56px; margin-bottom: 12px; }
+
+/* ── Tags ── */
+.tb-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.tb-tag-green { background: #E8F8EE; color: var(--tb-green); }
+.tb-tag-orange { background: #FFF0E8; color: var(--tb-orange); }
+.tb-tag-gray { background: #F0F0F0; color: var(--tb-text-muted); }
+
+/* ── Animations ── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim-slide-up { animation: slideUp 0.35s ease; }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.anim-pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+.anim-shake { animation: shake 0.4s ease; }
+
+/* ── Gradient text ── */
+.tb-gradient-text {
+  background: linear-gradient(135deg, var(--tb-orange), var(--tb-red));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Divider ── */
+.tb-divider {
+  height: 8px;
+  background: var(--tb-bg);
+  margin: 0 -14px;
+}
+
+/* ── Rich card with left accent ── */
+.tb-card-accent {
+  border-left: 4px solid var(--tb-orange);
+}
