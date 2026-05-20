@@ -10,8 +10,17 @@ const api = axios.create({
   },
 });
 
+if (typeof window !== 'undefined') {
+  // Helps verify the resolved API target in production deployments.
+  console.log('[API] baseURL =', apiBaseUrl);
+}
+
 // Request interceptor — attach JWT token
 api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const resolvedUrl = `${config.baseURL || ''}${config.url || ''}`;
+    console.log('[API] request =', config.method?.toUpperCase(), resolvedUrl);
+  }
   const token = localStorage.getItem('accessToken');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
