@@ -26,7 +26,43 @@
     "api/v1/captcha/verify.ts": {
       "maxDuration": 10
     },
+    "api/v1/vip/status.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/vip/order.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/user/profile.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/gift/first-purchase.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/gift/first-purchase/shown.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/gift/first-purchase/dismiss.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/invite/my-code.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/exchange/currencies.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/exchange/convert.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/unit/categories.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/unit/convert.ts": {
+      "maxDuration": 10
+    },
     "api/v1/calc/evaluate.ts": {
+      "maxDuration": 10
+    },
+    "api/v1/calc/history.ts": {
       "maxDuration": 10
     },
     "api/v1/splash-popup/list.ts": {

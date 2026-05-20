@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from 'axios';
+import { logout } from './auth';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
@@ -46,10 +47,11 @@ api.interceptors.response.use(
             return axios(error.config);
           }
         } catch {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
+          logout();
           window.location.href = '/login';
         }
+      } else {
+        logout();
       }
     }
     return Promise.reject(error);

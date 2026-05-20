@@ -1,7 +1,5 @@
-import app, { ensureAppReady } from '../../../backend/src/app';
+import { forwardToExpress } from '../../_forward';
 
 export default async function handler(req: any, res: any) {
-  req.url = '/api/v1/splash-popup/log';
-  await ensureAppReady();
-  return app(req, res);
+  return forwardToExpress(req, res, '/api/v1/splash-popup/log');
 }
