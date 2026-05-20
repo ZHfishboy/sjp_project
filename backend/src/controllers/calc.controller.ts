@@ -29,18 +29,22 @@ export async function evaluateExpression(req: Request, res: Response): Promise<v
   // Determine user's recharge total and VIP status
   let rechargeTotal = 0;
   let isVip = false;
+  let activeUserId: number | null = null;
 
   if (req.userId) {
     const user = await db('users').where({ id: req.userId }).first();
-    rechargeTotal = user?.total_recharge || 0;
+    if (user) {
+      activeUserId = req.userId;
+      rechargeTotal = user.total_recharge || 0;
 
-    const vip = await db('user_vip')
-      .where({ user_id: req.userId, status: 1 })
-      .where(function () {
-        this.whereNull('end_date').orWhere('end_date', '>', new Date());
-      })
-      .first();
-    isVip = !!vip;
+      const vip = await db('user_vip')
+        .where({ user_id: req.userId, status: 1 })
+        .where(function () {
+          this.whereNull('end_date').orWhere('end_date', '>', new Date());
+        })
+        .first();
+      isVip = !!vip;
+    }
   }
 
   try {
@@ -52,9 +56,9 @@ export async function evaluateExpression(req: Request, res: Response): Promise<v
     });
 
     // Save to history if logged in
-    if (req.userId) {
+    if (activeUserId) {
       await db('calculation_history').insert({
-        user_id: req.userId,
+        user_id: activeUserId,
         expression: result.expression,
         result: result.result,
         type: result.type,
@@ -64,16 +68,16 @@ export async function evaluateExpression(req: Request, res: Response): Promise<v
 
       // Deduct tokens if applicable
       if (result.tokensSpent > 0) {
-        const wallet = await db('user_wallet').where({ user_id: req.userId }).first();
+        const wallet = await db('user_wallet').where({ user_id: activeUserId }).first();
         if (wallet) {
           const newBalance = Math.max(0, wallet.token_balance - result.tokensSpent);
-          await db('user_wallet').where({ user_id: req.userId }).update({
+          await db('user_wallet').where({ user_id: activeUserId }).update({
             token_balance: newBalance,
             total_tokens_consumed: wallet.total_tokens_consumed + result.tokensSpent,
           });
 
           await db('token_consumption_log').insert({
-            user_id: req.userId,
+            user_id: activeUserId,
             operation_type: result.operations.join(',') || 'expression',
             operation_desc: expression.substring(0, 200),
             tokens_spent: result.tokensSpent,
