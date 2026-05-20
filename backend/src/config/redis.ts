@@ -1,7 +1,6 @@
 import Redis from 'ioredis';
 import { config } from './index';
 
-// ── In-memory store (fallback when Redis is unavailable) ──
 class MemoryStore {
   private store = new Map<string, { value: string; expiresAt: number | null }>();
 
@@ -15,9 +14,11 @@ class MemoryStore {
     return entry.value;
   }
 
-  async set(key: string, value: string, mode?: string, ttl?: number): Promise<'OK'> {
-    const expiresAt = ttl ? Date.now() + ttl * 1000 : null;
-    this.store.set(key, { value, expiresAt });
+  async set(key: string, value: string, ttlSeconds?: number): Promise<'OK'> {
+    this.store.set(key, {
+      value,
+      expiresAt: ttlSeconds ? Date.now() + ttlSeconds * 1000 : null,
+    });
     return 'OK';
   }
 
@@ -27,15 +28,20 @@ class MemoryStore {
 
   async ttl(key: string): Promise<number> {
     const entry = this.store.get(key);
-    if (!entry || !entry.expiresAt) return -1;
+    if (!entry) return -2;
+    if (!entry.expiresAt) return -1;
     const remaining = Math.ceil((entry.expiresAt - Date.now()) / 1000);
     return remaining > 0 ? remaining : -2;
   }
 
   async incr(key: string): Promise<number> {
-    const val = parseInt((await this.get(key)) || '0', 10) + 1;
-    await this.set(key, String(val));
-    return val;
+    const value = parseInt((await this.get(key)) || '0', 10) + 1;
+    const entry = this.store.get(key);
+    this.store.set(key, {
+      value: String(value),
+      expiresAt: entry?.expiresAt || null,
+    });
+    return value;
   }
 
   async expire(key: string, seconds: number): Promise<number> {
@@ -46,94 +52,102 @@ class MemoryStore {
   }
 
   async exists(key: string): Promise<number> {
-    const val = await this.get(key);
-    return val !== null ? 1 : 0;
+    return (await this.get(key)) === null ? 0 : 1;
   }
 
   disconnect() {}
 }
 
-// ── Redis Client (lazy init, falls back to memory) ──
-let realRedis: Redis | null = null;
-let useMemory = false;
 const memoryStore = new MemoryStore();
+let realRedis: Redis | null = null;
+let forcedMemory = !process.env.REDIS_URL && !process.env.REDIS_HOST;
 
-function getStore(): Redis | MemoryStore {
-  if (useMemory) return memoryStore;
+function markMemoryMode() {
+  forcedMemory = true;
+  try {
+    realRedis?.disconnect();
+  } catch {}
+  realRedis = null;
+}
 
-  if (!realRedis) {
-    try {
-      realRedis = new Redis({
+function createRedisClient() {
+  if (realRedis || forcedMemory) return realRedis;
+
+  realRedis = process.env.REDIS_URL
+    ? new Redis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: 1,
+        lazyConnect: true,
+        connectTimeout: 1500,
+      })
+    : new Redis({
         host: config.redis.host,
         port: config.redis.port,
         password: config.redis.password || undefined,
         db: config.redis.db,
-        retryStrategy(times) {
-          if (times > 2) {
-            console.log('[Redis] Unavailable — switching to in-memory store');
-            useMemory = true;
-            return null; // stop retrying
-          }
-          return Math.min(times * 100, 500);
-        },
         maxRetriesPerRequest: 1,
         lazyConnect: true,
-        connectTimeout: 2000,
+        connectTimeout: 1500,
       });
 
-      realRedis.on('error', () => {
-        if (!useMemory && realRedis) {
-          console.log('[Redis] Connection failed — using in-memory store');
-          useMemory = true;
-          try { realRedis?.disconnect(); } catch {}
-          realRedis = null;
-        }
-      });
-    } catch {
-      console.log('[Redis] Not available — using in-memory store');
-      useMemory = true;
-      return new MemoryStore();
-    }
-  }
+  realRedis.on('error', () => {
+    markMemoryMode();
+  });
+
+  realRedis.on('end', () => {
+    markMemoryMode();
+  });
 
   return realRedis;
 }
 
-// ── Public API ──
+async function withStore<T>(operation: (store: Redis | MemoryStore) => Promise<T>): Promise<T> {
+  const client = createRedisClient();
+  if (!client) return operation(memoryStore);
+
+  try {
+    return await operation(client);
+  } catch {
+    markMemoryMode();
+    return operation(memoryStore);
+  }
+}
+
 export const redis = {
   async get(key: string): Promise<string | null> {
-    return getStore().get(key);
+    return withStore((store) => store.get(key));
   },
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<'OK'> {
-    const store = getStore();
-    if (store instanceof MemoryStore) {
-      return store.set(key, value, undefined, ttlSeconds);
-    }
-    if (ttlSeconds) {
-      return store.set(key, value, 'EX', ttlSeconds) as Promise<'OK'>;
-    }
-    return store.set(key, value) as Promise<'OK'>;
+    return withStore((store) => {
+      if (store instanceof MemoryStore) return store.set(key, value, ttlSeconds);
+      return ttlSeconds
+        ? (store.set(key, value, 'EX', ttlSeconds) as Promise<'OK'>)
+        : (store.set(key, value) as Promise<'OK'>);
+    });
   },
 
   async del(key: string): Promise<number> {
-    return getStore().del(key);
+    return withStore((store) => store.del(key));
   },
 
   async ttl(key: string): Promise<number> {
-    return getStore().ttl(key);
+    return withStore((store) => store.ttl(key));
   },
 
   async incr(key: string): Promise<number> {
-    return getStore().incr(key);
+    return withStore((store) => store.incr(key));
   },
 
   async expire(key: string, seconds: number): Promise<number> {
-    return getStore().expire(key, seconds);
+    return withStore((store) => store.expire(key, seconds));
   },
 
   async exists(key: string): Promise<number> {
-    return getStore().exists(key);
+    return withStore((store) => store.exists(key));
+  },
+
+  disconnect(): void {
+    markMemoryMode();
   },
 };
 

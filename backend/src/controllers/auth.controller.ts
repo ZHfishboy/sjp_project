@@ -2,27 +2,22 @@ import { Request, Response } from 'express';
 import { db } from '../config/database';
 import { hashPassword, verifyPassword, generateInviteCode } from '../utils/crypto';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt';
-import { success, fail, unauthorized, tooManyRequests } from '../utils/response';
+import { success, fail, unauthorized } from '../utils/response';
 import { verifyCaptcha, generateVerificationCode, verifyCode, canSendCode } from '../services/captcha.service';
 import redis from '../config/redis';
 import { sendSMS } from '../services/sms.service';
-import { AppError } from '../middleware/errorHandler';
 
-// ====================================================================
-// Register
-// ====================================================================
+function validatePassword(password: string) {
+  return typeof password === 'string' && password.length >= 8 && password.length <= 20;
+}
+
+async function findActiveUserById(userId: number) {
+  return db('users').where({ id: userId, status: 1 }).first();
+}
+
 export async function register(req: Request, res: Response): Promise<void> {
-  const {
-    username,
-    password,
-    email,
-    phone,
-    captchaId,
-    captchaAnswer,
-    inviteCode,
-  } = req.body;
+  const { username, password, email, phone, captchaId, captchaAnswer, inviteCode } = req.body;
 
-  // --- Validate required ---
   if (!username || !password) {
     return fail(res, '用户名和密码不能为空');
   }
@@ -31,32 +26,24 @@ export async function register(req: Request, res: Response): Promise<void> {
     return fail(res, '用户名长度应为 3-50 位');
   }
 
-  // Password strength: 8-20 chars, must include upper+lower+digit+special
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,20}$/;
-  if (!passwordRegex.test(password)) {
-    return fail(res, '密码需 8-20 位，包含大小写字母、数字和特殊字符');
+  if (!validatePassword(password)) {
+    return fail(res, '密码需要 8-20 位');
   }
 
-  // --- Captcha verification ---
   if (captchaId && captchaAnswer) {
     const captchaValid = await verifyCaptcha({ captchaId, answer: captchaAnswer });
     if (!captchaValid) {
-      return fail(res, '图形验证码错误或已过期');
+      return fail(res, '验证码错误或已过期');
     }
   }
 
-  // --- Generate invite code ---
-  const myInviteCode = generateInviteCode();
-
-  // --- Create user ---
   const passwordHash = await hashPassword(password);
+  const myInviteCode = generateInviteCode();
 
   let invitedBy: number | null = null;
   if (inviteCode) {
-    const inviter = await db('users').where({ invite_code: inviteCode }).first();
-    if (inviter) {
-      invitedBy = inviter.id;
-    }
+    const inviter = await db('users').where({ invite_code: inviteCode, status: 1 }).first();
+    if (inviter) invitedBy = inviter.id;
   }
 
   try {
@@ -70,14 +57,12 @@ export async function register(req: Request, res: Response): Promise<void> {
       status: 1,
     });
 
-    // Create wallet for new user
     await db('user_wallet').insert({
       user_id: userId,
-      token_balance: 50, // Welcome bonus: 50 tokens
+      token_balance: 50,
       total_tokens_earned: 50,
     });
 
-    // Create rate tier (default: tier 3)
     await db('user_rate_tier').insert({
       user_id: userId,
       tier: 3,
@@ -85,7 +70,6 @@ export async function register(req: Request, res: Response): Promise<void> {
       max_concurrency: 1,
     });
 
-    // Process invite reward (if applicable)
     if (invitedBy) {
       await db('user_invites').insert({
         inviter_id: invitedBy,
@@ -96,12 +80,10 @@ export async function register(req: Request, res: Response): Promise<void> {
         is_valid: 1,
       });
 
-      // Give inviter 10 tokens
       await db('user_wallet').where({ user_id: invitedBy }).increment('token_balance', 10);
       await db('user_wallet').where({ user_id: invitedBy }).increment('total_tokens_earned', 10);
     }
 
-    // Generate tokens
     const tokenPayload = { userId, username };
     const accessToken = signAccessToken(tokenPayload);
     const refreshToken = signRefreshToken(tokenPayload);
@@ -116,49 +98,35 @@ export async function register(req: Request, res: Response): Promise<void> {
     }, '注册成功', 201);
   } catch (err: any) {
     if (err.message?.includes('UNIQUE constraint failed')) {
-      if (err.message.includes('username')) {
-        return fail(res, '用户名已存在', 409);
-      }
-      if (err.message.includes('email')) {
-        return fail(res, '邮箱已被注册', 409);
-      }
-      if (err.message.includes('phone')) {
-        return fail(res, '手机号已被注册', 409);
-      }
+      if (err.message.includes('username')) return fail(res, '用户名已存在', 409);
+      if (err.message.includes('email')) return fail(res, '邮箱已被注册', 409);
+      if (err.message.includes('phone')) return fail(res, '手机号已被注册', 409);
       return fail(res, '用户已存在', 409);
     }
     throw err;
   }
 }
 
-// ====================================================================
-// Login
-// ====================================================================
 export async function login(req: Request, res: Response): Promise<void> {
   const { account, password, captchaId, captchaAnswer, loginType } = req.body;
-  // account = username | email | phone
-  // loginType = 'password' | 'sms'
 
   if (!account) {
     return fail(res, '请输入账号');
   }
 
-  // Check failed attempts for this account (to trigger captcha)
   const failKey = `login_fail:${account}`;
   const failCount = parseInt((await redis.get(failKey)) || '0', 10);
 
-  // Require captcha after 3 consecutive failures
   if (failCount >= 3) {
     if (!captchaId || !captchaAnswer) {
       return fail(res, '请完成图形验证码', 400, { requireCaptcha: true });
     }
     const captchaValid = await verifyCaptcha({ captchaId, answer: captchaAnswer });
     if (!captchaValid) {
-      return fail(res, '图形验证码错误或已过期', 400, { requireCaptcha: true });
+      return fail(res, '验证码错误或已过期', 400, { requireCaptcha: true });
     }
   }
 
-  // --- Find user ---
   const user = await db('users')
     .where(function () {
       this.where('username', account).orWhere('email', account).orWhere('phone', account);
@@ -168,12 +136,12 @@ export async function login(req: Request, res: Response): Promise<void> {
 
   if (!user) {
     await redis.incr(failKey);
-    await redis.expire(failKey, 1800); // 30 min
+    await redis.expire(failKey, 1800);
     return fail(res, '账号或密码错误');
   }
 
   if (user.status === 2) {
-    return fail(res, '账号正在注销中，7天后将永久删除。如需恢复，请重新登录。');
+    return fail(res, '账号正在注销中，请重新登录以恢复账号');
   }
 
   if (loginType === 'sms') {
@@ -186,7 +154,6 @@ export async function login(req: Request, res: Response): Promise<void> {
       return fail(res, '短信验证码错误或已过期');
     }
   } else {
-    // Password login
     if (!password) return fail(res, '请输入密码');
     const valid = await verifyPassword(password, user.password_hash);
     if (!valid) {
@@ -196,10 +163,8 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
   }
 
-  // Login success — clear failure count
   await redis.del(failKey);
 
-  // Log the login
   try {
     await db('login_logs').insert({
       user_id: user.id,
@@ -210,16 +175,16 @@ export async function login(req: Request, res: Response): Promise<void> {
     });
   } catch {}
 
-  // Generate tokens
   const tokenPayload = { userId: user.id, username: user.username };
   const accessToken = signAccessToken(tokenPayload);
   const refreshToken = signRefreshToken(tokenPayload);
 
-  // Get wallet balance
   const wallet = await db('user_wallet').where({ user_id: user.id }).first();
   const vip = await db('user_vip')
     .where({ user_id: user.id, status: 1 })
-    .where('end_date', '>', new Date())
+    .where(function () {
+      this.whereNull('end_date').orWhere('end_date', '>', new Date());
+    })
     .first();
 
   return success(res, {
@@ -237,18 +202,10 @@ export async function login(req: Request, res: Response): Promise<void> {
   }, '登录成功');
 }
 
-// ====================================================================
-// Logout
-// ====================================================================
 export async function logout(_req: Request, res: Response): Promise<void> {
-  // Stateless JWT — client should discard tokens.
-  // In a production system, you might add the token to a Redis blacklist.
   return success(res, null, '已退出登录');
 }
 
-// ====================================================================
-// Refresh Token
-// ====================================================================
 export async function refresh(req: Request, res: Response): Promise<void> {
   const { refreshToken } = req.body;
   if (!refreshToken) {
@@ -261,13 +218,15 @@ export async function refresh(req: Request, res: Response): Promise<void> {
       return unauthorized(res, '无效的刷新令牌');
     }
 
-    const tokenPayload = { userId: payload.userId, username: payload.username };
-    const newAccessToken = signAccessToken(tokenPayload);
-    const newRefreshToken = signRefreshToken(tokenPayload);
+    const user = await findActiveUserById(payload.userId);
+    if (!user) {
+      return unauthorized(res, '登录已失效，请重新登录');
+    }
 
+    const tokenPayload = { userId: payload.userId, username: payload.username };
     return success(res, {
-      accessToken: newAccessToken,
-      refreshToken: newRefreshToken,
+      accessToken: signAccessToken(tokenPayload),
+      refreshToken: signRefreshToken(tokenPayload),
     }, '令牌刷新成功');
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {
@@ -277,29 +236,22 @@ export async function refresh(req: Request, res: Response): Promise<void> {
   }
 }
 
-// ====================================================================
-// Reset Password
-// ====================================================================
 export async function resetPassword(req: Request, res: Response): Promise<void> {
-  const { account, verifyCode, newPassword, captchaId, captchaAnswer } = req.body;
+  const { account, verifyCode: inputCode, newPassword, captchaId, captchaAnswer } = req.body;
 
-  if (!account || !verifyCode || !newPassword) {
+  if (!account || !inputCode || !newPassword) {
     return fail(res, '请填写完整信息');
   }
 
-  // Password strength
-  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,20}$/;
-  if (!passwordRegex.test(newPassword)) {
-    return fail(res, '新密码需 8-20 位，包含大小写字母、数字和特殊字符');
+  if (!validatePassword(newPassword)) {
+    return fail(res, '新密码需要 8-20 位');
   }
 
-  // Captcha
   if (captchaId && captchaAnswer) {
     const valid = await verifyCaptcha({ captchaId, answer: captchaAnswer });
-    if (!valid) return fail(res, '图形验证码错误或已过期');
+    if (!valid) return fail(res, '验证码错误或已过期');
   }
 
-  // Find user
   const user = await db('users')
     .where(function () {
       this.where('email', account).orWhere('phone', account);
@@ -310,61 +262,49 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     return fail(res, '账号不存在');
   }
 
-  // Verify SMS/Email code
   const isEmail = account.includes('@');
-  const valid = await verifyCode(account, isEmail ? 'email' : 'sms', verifyCode);
+  const valid = await verifyCode(account, isEmail ? 'email' : 'sms', inputCode);
   if (!valid) {
     return fail(res, '验证码错误或已过期');
   }
 
-  // Update password
-  const passwordHash = await hashPassword(newPassword);
   await db('users').where({ id: user.id }).update({
-    password_hash: passwordHash,
+    password_hash: await hashPassword(newPassword),
     updated_at: new Date(),
   });
 
   return success(res, null, '密码重置成功，请使用新密码登录');
 }
 
-// ====================================================================
-// Send Verification Code (SMS / Email)
-// ====================================================================
 export async function sendVerifyCode(req: Request, res: Response): Promise<void> {
   const { target, type, captchaId, captchaAnswer } = req.body;
-  // type: 'sms' | 'email'
 
   if (!target || !type) {
     return fail(res, '参数不完整');
   }
 
-  // Rate limit check
   const { allowed, retryAfter } = await canSendCode(target, type);
   if (!allowed) {
     return fail(res, `操作过于频繁，请 ${retryAfter} 秒后再试`, 429);
   }
 
-  // Captcha required
   if (captchaId && captchaAnswer) {
     const valid = await verifyCaptcha({ captchaId, answer: captchaAnswer });
-    if (!valid) return fail(res, '图形验证码错误或已过期');
+    if (!valid) return fail(res, '验证码错误或已过期');
   }
 
-  // Generate and send
   const { code, expireSeconds } = await generateVerificationCode(target, type);
 
   if (type === 'sms') {
     await sendSMS(target, code);
   } else {
-    console.log(`[Email] To: ${target} | Code: ${code} | (placeholder)`);
-    // TODO: integrate Email service
+    console.log(`[Email] To: ${target} | Code: ${code}`);
   }
 
   return success(res, {
     target,
     type,
     expireSeconds,
-    // In development, return code for testing; remove in production
     ...(process.env.NODE_ENV === 'development' ? { code } : {}),
   }, '验证码已发送');
 }

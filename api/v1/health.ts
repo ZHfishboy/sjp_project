@@ -1,4 +1,4 @@
-import { forwardToExpress } from '../_forward';
+import { forwardToExpress } from '../../backend/src/vercel/forward';
 
 export default async function handler(req: any, res: any) {
   return forwardToExpress(req, res, '/api/v1/health');

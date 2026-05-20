@@ -11,17 +11,7 @@ const api = axios.create({
   },
 });
 
-if (typeof window !== 'undefined') {
-  // Helps verify the resolved API target in production deployments.
-  console.log('[API] baseURL =', apiBaseUrl);
-}
-
-// Request interceptor — attach JWT token
 api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const resolvedUrl = `${config.baseURL || ''}${config.url || ''}`;
-    console.log('[API] request =', config.method?.toUpperCase(), resolvedUrl);
-  }
   const token = localStorage.getItem('accessToken');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -29,7 +19,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor — handle token expiry
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -41,7 +30,7 @@ api.interceptors.response.use(
             refreshToken,
           });
           localStorage.setItem('accessToken', data.data.accessToken);
-          // Retry original request
+
           if (error.config) {
             error.config.headers.Authorization = `Bearer ${data.data.accessToken}`;
             return axios(error.config);
@@ -60,7 +49,6 @@ api.interceptors.response.use(
 
 export default api;
 
-// Typed request helpers
 export async function get<T>(url: string, config?: AxiosRequestConfig) {
   const res = await api.get<T>(url, config);
   return res.data;

@@ -1,4 +1,4 @@
-import app, { ensureAppReady } from '../backend/src/app';
+import app, { ensureAppReady } from '../app';
 
 function buildQueryString(query: Record<string, unknown>) {
   const search = new URLSearchParams();
